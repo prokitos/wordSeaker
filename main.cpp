@@ -1,201 +1,193 @@
 #include <windows.h>
 #include <string>
 #include <filesystem>
+#include <iterator>    
+#include <sstream>
+#include <vector>
 
 #define onButtonClicked 5
 
-// объявление функций
+
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 ATOM RegMyWindowClass(HINSTANCE, LPCTSTR);
 HWND hwndButton;
-HWND inputFirst;
-HWND inputSecond;
-HWND inputThird;
+HWND inputFormat;
+HWND inputWord;
+HWND outputPath;
+HWND inputPath;
 
 
-void testFunc();
+void searchFun();
 void loadFile(LPCSTR path);
-void FolderScan();
+void mainFolderScan(LPCSTR path);
 void nextFolderScan(LPCSTR pathLpc);
 
-std::string result = "";
+std::vector<std::string> searchFormat;  // вектор с форматами которые ищутся
+std::string result = "";                // выходная строка с путями файлов, в которых есть слово
+std::string searchWord = "";            // строка для поиска
 
-// функция вхождений программы WinMain
+
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-    // имя будущего класса
     LPCTSTR lpzClass = TEXT("My Window Class!");
 
-    // регистрация класса
     if (!RegMyWindowClass(hInstance, lpzClass))
         return 1;
 
-    // вычисление координат центра экрана
     RECT screen_rect;
     GetWindowRect(GetDesktopWindow(), &screen_rect); // разрешение экрана
     int x = screen_rect.right / 2 - 150;
     int y = screen_rect.bottom / 2 - 75;
 
 
+    LPCSTR startType = ".txt .xml .lua .ini";
+    LPCSTR srartWord = "1300901";
+    LPCSTR startPath = "G:/game/bsNew/ZettaServer/data";
 
 
-    // создание диалогового окна
-    HWND hWnd = CreateWindow(lpzClass, TEXT("Dialog Window"), WS_OVERLAPPEDWINDOW | WS_VISIBLE, x, y, 700, 250, NULL, NULL, hInstance, NULL);
+    HWND hWnd = CreateWindow(lpzClass, TEXT("Dialog Window"), WS_OVERLAPPEDWINDOW | WS_VISIBLE, x, y, 750, 300, NULL, NULL, hInstance, NULL);
 
-    hwndButton = CreateWindow("BUTTON", "OK", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 10, 10, 50, 50, hWnd, reinterpret_cast<HMENU>(onButtonClicked), NULL, NULL);     
+    hwndButton = CreateWindow("BUTTON", "OK", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 10, 10, 50, 50, hWnd, reinterpret_cast<HMENU>(onButtonClicked), NULL, NULL); 
+    inputFormat = CreateWindow(TEXT("Edit"), TEXT(startType), WS_CHILD | WS_VISIBLE | WS_BORDER, 150, 20, 550, 20, hWnd, NULL, NULL, NULL); 
+    inputWord = CreateWindow(TEXT("Edit"), TEXT(srartWord), WS_CHILD | WS_VISIBLE | WS_BORDER, 150, 50, 550, 20, hWnd, NULL, NULL, NULL); 
+    inputPath = CreateWindow(TEXT("Edit"), TEXT(startPath), WS_CHILD | WS_VISIBLE | WS_BORDER, 150, 80, 550, 20, hWnd, NULL, NULL, NULL); 
+    outputPath = CreateWindow(TEXT("Edit"), TEXT(" "), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_MULTILINE | WS_VSCROLL, 150, 110, 550, 120, hWnd, NULL, NULL, NULL); 
+    
 
-    inputFirst = CreateWindow(TEXT("Edit"), TEXT("txt xml"), WS_CHILD | WS_VISIBLE | WS_BORDER, 150, 20, 450, 20, hWnd, NULL, NULL, NULL); 
-    inputSecond = CreateWindow(TEXT("Edit"), TEXT("search word"), WS_CHILD | WS_VISIBLE | WS_BORDER, 150, 50, 450, 20, hWnd, NULL, NULL, NULL); 
-    inputThird = CreateWindow(TEXT("Edit"), TEXT(" "), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_MULTILINE | WS_VSCROLL, 150, 80, 450, 80, hWnd, NULL, NULL, NULL); 
 
 
 
-    // если окно не создано, описатель будет равен 0
     if (!hWnd) return 2;
 
-    // цикл сообщений приложения
-    MSG msg = { 0 };    // структура сообщения
-    int iGetOk = 0;   // переменная состояния
-    while ((iGetOk = GetMessage(&msg, NULL, 0, 0)) != 0) // цикл сообщений
+    MSG msg = { 0 };
+    int iGetOk = 0;
+    while ((iGetOk = GetMessage(&msg, NULL, 0, 0)) != 0)
     {
-        if (iGetOk == -1) return 3;  // если GetMessage вернул ошибку - выход
+        if (iGetOk == -1) return 3;
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
 
-    return msg.wParam;  // возвращаем код завершения программы
+    return msg.wParam; 
 }
 
-////////////////////////////////////////////////////////////////////////// 
-// функция регистрации класса окон
+
 ATOM RegMyWindowClass(HINSTANCE hInst, LPCTSTR lpzClassName)
 {
     WNDCLASS wcWindowClass = { 0 };
-    // адрес ф-ции обработки сообщений
     wcWindowClass.lpfnWndProc = (WNDPROC)WndProc;
-    // стиль окна
     wcWindowClass.style = CS_HREDRAW | CS_VREDRAW;
-    // дискриптор экземпляра приложения
     wcWindowClass.hInstance = hInst;
-    // название класса
     wcWindowClass.lpszClassName = lpzClassName;
-    // загрузка курсора
     wcWindowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
-    // загрузка цвета окон
     wcWindowClass.hbrBackground = (HBRUSH)COLOR_APPWORKSPACE;
-    return RegisterClass(&wcWindowClass); // регистрация класса
+    return RegisterClass(&wcWindowClass);
 }
 
-////////////////////////////////////////////////////////////////////////// 
-// функция обработки сообщений
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    // выборка и обработка сообщений
     switch (message)
     {
     case WM_COMMAND:
         switch (wParam)
         {
             case onButtonClicked:
-            testFunc();
+            searchFun();
             break;
         }
         break;
     case WM_DESTROY:
-        PostQuitMessage(0);  // реакция на сообщение
+        PostQuitMessage(0); 
         break;
     default:
-        // все сообщения не обработанные Вами обработает сама Windows
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
     return 0;
 }
 
 
-void testFunc()
+void searchFun()
 {
-    std::string temp;
     TCHAR buff[1024] = {0};
-    GetWindowText(inputFirst, buff, 1024);
-    temp = buff;
-    int k = 0;
 
-    //LPCSTR testPath = "G:\\game\\testFolder\\";
-    //loadFile(testPath);
-    FolderScan();
+    // получаем форматы файлов
+    GetWindowText(inputFormat, buff, 1024);
+    std::istringstream iss(buff);   // строка с путями, потом в вектор
+    std::copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), std::back_inserter(searchFormat));
+
+    // получаем строку для поиска
+    buff[1024] = {0};
+    GetWindowText(inputWord, buff, 1024);
+    searchWord = buff;
+    
+    // получаем директорию для поиска
+    LPCSTR mainPath = "";
+    buff[1024] = {0};
+    GetWindowText(inputPath, buff, 1024);
+    mainPath = buff;
+
+    mainFolderScan(mainPath);
 }
 
 
 // начальный поиск внутри базовой папки
-void FolderScan()
+void mainFolderScan(LPCSTR path)
 {
     
-    std::string path = "G:/game/bsNew/ZettaServer/server_data";
-    std::string path = "G:/game/testFolder";
-
-    for (const auto & entry : std::filesystem::directory_iterator(path))
-    {
-        std::string tmp = entry.path().string();
-        std::string replaceStr = "\\";
-        int pos = tmp.find(replaceStr);
-
-        if(pos > 0)
-            tmp.replace(pos,1,"/");
-
-        int pos1 = tmp.find('.');
-
-        if(pos1 < 0)
-            nextFolderScan(tmp.c_str());
-        else
-            loadFile(tmp.c_str());
-    }
+    // вызов функции поиска в папке
+    nextFolderScan(path);
 
     // после всех сканов, вывести ничего если не найдено
     if(result == "")
-        SetWindowText(inputThird, "nothing in file");   
+        SetWindowText(outputPath, "nothing in file");   
     else
-        SetWindowText(inputThird, result.c_str());
+        SetWindowText(outputPath, result.c_str());
     
 
 }
 
-// нахождение папки внутри папки
+// нахождение файлов и папок внутри папки
 void nextFolderScan(LPCSTR pathLpc)
 {
     std::string path = pathLpc;
    
     for (const auto & entry : std::filesystem::directory_iterator(path))
     {
+        // берем каждый элемент в папке, и меняем у него в пути две черты на одну
         std::string tmp = entry.path().string();
         std::string replaceStr = "\\";
         int pos = tmp.find(replaceStr);
-
         if(pos > 0)
             tmp.replace(pos,1,"/");
 
+        // если совпало расширение файла, то открываем и проверяем
+        for (size_t i = 0; i < searchFormat.size(); i++)
+        {
+            int pos2 = tmp.find(searchFormat[i]);
+            if(pos2 > 0)
+                loadFile(tmp.c_str());
+        }
+        
+        // если точки в названии не найдено, то значит это папка, и теперь проверяем внутри неё
         int pos1 = tmp.find('.');
-        int pos2 = tmp.find(".xml");
-
         if(pos1 < 0)
             nextFolderScan(tmp.c_str());
-        if(pos2 > 0)
-            loadFile(tmp.c_str());
+
     }
 }
 
 // поиск слов в тексте
 int textEqual(std::string& text)
 {
-    std::string search = "Star_Blue";
 
-    int pos = text.find(search);
+    int pos = text.find(searchWord);
 
     if(pos > 0)
         return 1;
     else
         return 0;
     
-
 }
 
 // загрука файла по указанному пути
