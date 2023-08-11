@@ -130,7 +130,7 @@ void testFunc()
 void FolderScan()
 {
     
-   
+    std::string path = "G:/game/bsNew/ZettaServer/server_data";
     std::string path = "G:/game/testFolder";
 
     for (const auto & entry : std::filesystem::directory_iterator(path))
@@ -202,7 +202,7 @@ int textEqual(std::string& text)
 void loadFile(LPCSTR path)
 {
     int bufferSize = 160000;
-    char textBuffer[bufferSize];
+    char textBuffer[bufferSize] {};  // была ошибка. без {} оставались данные на следующий круг и ложные срабатывания.
 
     HANDLE FileToLoad = CreateFileA(path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     DWORD bytesIterated;
