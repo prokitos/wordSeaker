@@ -45,13 +45,13 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     LPCSTR startPath = "G:/game/bsNew/ZettaServer/data";
 
 
-    HWND hWnd = CreateWindow(lpzClass, TEXT("Dialog Window"), WS_OVERLAPPEDWINDOW | WS_VISIBLE, x, y, 750, 300, NULL, NULL, hInstance, NULL);
+    HWND hWnd = CreateWindow(lpzClass, TEXT("Dialog Window"), WS_OVERLAPPEDWINDOW | WS_VISIBLE, x, y, 620, 400, NULL, NULL, hInstance, NULL);
 
-    hwndButton = CreateWindow("BUTTON", "OK", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 10, 10, 50, 50, hWnd, reinterpret_cast<HMENU>(onButtonClicked), NULL, NULL); 
-    inputFormat = CreateWindow(TEXT("Edit"), TEXT(startType), WS_CHILD | WS_VISIBLE | WS_BORDER, 150, 20, 550, 20, hWnd, NULL, NULL, NULL); 
-    inputWord = CreateWindow(TEXT("Edit"), TEXT(srartWord), WS_CHILD | WS_VISIBLE | WS_BORDER, 150, 50, 550, 20, hWnd, NULL, NULL, NULL); 
-    inputPath = CreateWindow(TEXT("Edit"), TEXT(startPath), WS_CHILD | WS_VISIBLE | WS_BORDER, 150, 80, 550, 20, hWnd, NULL, NULL, NULL); 
-    outputPath = CreateWindow(TEXT("Edit"), TEXT(" "), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_MULTILINE | WS_VSCROLL, 150, 110, 550, 120, hWnd, NULL, NULL, NULL); 
+    hwndButton = CreateWindow("BUTTON", "search", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 250, 250, 100, 30, hWnd, reinterpret_cast<HMENU>(onButtonClicked), NULL, NULL); 
+    inputFormat = CreateWindow(TEXT("Edit"), TEXT(startType), WS_CHILD | WS_VISIBLE | WS_BORDER, 30, 20, 550, 20, hWnd, NULL, NULL, NULL); 
+    inputWord = CreateWindow(TEXT("Edit"), TEXT(srartWord), WS_CHILD | WS_VISIBLE | WS_BORDER, 30, 50, 550, 20, hWnd, NULL, NULL, NULL); 
+    inputPath = CreateWindow(TEXT("Edit"), TEXT(startPath), WS_CHILD | WS_VISIBLE | WS_BORDER, 30, 80, 550, 20, hWnd, NULL, NULL, NULL); 
+    outputPath = CreateWindow(TEXT("Edit"), TEXT(" "), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_MULTILINE | WS_VSCROLL, 30, 110, 550, 120, hWnd, NULL, NULL, NULL); 
     
 
 
