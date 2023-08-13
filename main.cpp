@@ -21,6 +21,7 @@ void searchFun();
 void loadFile(LPCSTR path);
 void mainFolderScan(LPCSTR path);
 void nextFolderScan(LPCSTR pathLpc);
+void buttonActivate(bool state);
 
 std::vector<std::string> searchFormat;  // вектор с форматами которые ищутся
 std::string result = "";                // выходная строка с путями файлов, в которых есть слово
@@ -106,6 +107,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
+// фоновый поток для скана папок
+DWORD WINAPI thread2(LPVOID t)
+{
+    // получаем директорию для поиска
+    LPCSTR mainPath = "";
+    TCHAR buff[1024] = {0};
+    GetWindowText(inputPath, buff, 1024);
+    mainPath = buff;
+
+    // начальный поиск внутри базовой папки
+    nextFolderScan(mainPath);
+
+    // вывод результатов
+    if(result == "")
+        SetWindowText(outputPath, "nothing in file");   
+    else
+        SetWindowText(outputPath, result.c_str());
+
+    // завершение потока, и возврат состояния кнопки
+    buttonActivate(true);
+    return 0;
+}
 
 void searchFun()
 {
@@ -120,31 +143,21 @@ void searchFun()
     buff[1024] = {0};
     GetWindowText(inputWord, buff, 1024);
     searchWord = buff;
-    
-    // получаем директорию для поиска
-    LPCSTR mainPath = "";
-    buff[1024] = {0};
-    GetWindowText(inputPath, buff, 1024);
-    mainPath = buff;
 
-    mainFolderScan(mainPath);
+    // создание потока и изменение состояния кнопки
+    HANDLE thread = CreateThread(NULL,0,thread2,NULL, 0, NULL);
+    buttonActivate(false);
 }
 
-
-// начальный поиск внутри базовой папки
-void mainFolderScan(LPCSTR path)
+// смена состояний и названий кнопки
+void buttonActivate(bool state)
 {
-    
-    // вызов функции поиска в папке
-    nextFolderScan(path);
-
-    // после всех сканов, вывести ничего если не найдено
-    if(result == "")
-        SetWindowText(outputPath, "nothing in file");   
+    if(state == false)
+        SetWindowText(hwndButton, "Waiting...");
     else
-        SetWindowText(outputPath, result.c_str());
+        SetWindowText(hwndButton, "search");
     
-
+    EnableWindow(hwndButton,state);
 }
 
 // нахождение файлов и папок внутри папки
