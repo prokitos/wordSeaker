@@ -1,16 +1,21 @@
+
 #include <windows.h>
 #include <string>
 #include <filesystem>
 #include <iterator>    
 #include <sstream>
 #include <vector>
+#include <shlobj_core.h>
 
-#define onButtonClicked 5
+#define buttonSearchClick 5
+#define buttonSelectClick 6
 
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 ATOM RegMyWindowClass(HINSTANCE, LPCTSTR);
+
 HWND hwndButton;
+HWND hwndFindButton;
 HWND inputFormat;
 HWND inputWord;
 HWND outputPath;
@@ -23,9 +28,9 @@ void mainFolderScan(LPCSTR path);
 void nextFolderScan(LPCSTR pathLpc);
 void buttonActivate(bool state);
 
-std::vector<std::string> searchFormat;  // РІРµРєС‚РѕСЂ СЃ С„РѕСЂРјР°С‚Р°РјРё РєРѕС‚РѕСЂС‹Рµ РёС‰СѓС‚СЃСЏ
-std::string result = "";                // РІС‹С…РѕРґРЅР°СЏ СЃС‚СЂРѕРєР° СЃ РїСѓС‚СЏРјРё С„Р°Р№Р»РѕРІ, РІ РєРѕС‚РѕСЂС‹С… РµСЃС‚СЊ СЃР»РѕРІРѕ
-std::string searchWord = "";            // СЃС‚СЂРѕРєР° РґР»СЏ РїРѕРёСЃРєР°
+std::vector<std::string> searchFormat;  // вектор с форматами которые ищутся
+std::string result = "";                // выходная строка с путями файлов, в которых есть слово
+std::string searchWord = "";            // строка для поиска
 
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
@@ -36,7 +41,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
         return 1;
 
     RECT screen_rect;
-    GetWindowRect(GetDesktopWindow(), &screen_rect); // СЂР°Р·СЂРµС€РµРЅРёРµ СЌРєСЂР°РЅР°
+    GetWindowRect(GetDesktopWindow(), &screen_rect); // разрешение экрана
     int x = screen_rect.right / 2 - 150;
     int y = screen_rect.bottom / 2 - 75;
 
@@ -48,12 +53,14 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
     HWND hWnd = CreateWindow(lpzClass, TEXT("Dialog Window"), WS_OVERLAPPEDWINDOW | WS_VISIBLE, x, y, 620, 400, NULL, NULL, hInstance, NULL);
 
-    hwndButton = CreateWindow("BUTTON", "search", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 250, 250, 100, 30, hWnd, reinterpret_cast<HMENU>(onButtonClicked), NULL, NULL); 
-    inputFormat = CreateWindow(TEXT("Edit"), TEXT(startType), WS_CHILD | WS_VISIBLE | WS_BORDER, 30, 20, 550, 20, hWnd, NULL, NULL, NULL); 
-    inputWord = CreateWindow(TEXT("Edit"), TEXT(srartWord), WS_CHILD | WS_VISIBLE | WS_BORDER, 30, 50, 550, 20, hWnd, NULL, NULL, NULL); 
-    inputPath = CreateWindow(TEXT("Edit"), TEXT(startPath), WS_CHILD | WS_VISIBLE | WS_BORDER, 30, 80, 550, 20, hWnd, NULL, NULL, NULL); 
-    outputPath = CreateWindow(TEXT("Edit"), TEXT(" "), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_MULTILINE | WS_VSCROLL, 30, 110, 550, 120, hWnd, NULL, NULL, NULL); 
-    
+    hwndButton = CreateWindowA("BUTTON", "search", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 150, 250, 100, 30, hWnd, reinterpret_cast<HMENU>(buttonSearchClick), NULL, NULL);
+    hwndFindButton = CreateWindowA("BUTTON", "folder select", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 350, 250, 100, 30, hWnd, reinterpret_cast<HMENU>(buttonSelectClick), NULL, NULL);
+
+    inputFormat = CreateWindowA("Edit", startType, WS_CHILD | WS_VISIBLE | WS_BORDER, 30, 20, 550, 20, hWnd, NULL, NULL, NULL);
+    inputWord = CreateWindowA("Edit", srartWord, WS_CHILD | WS_VISIBLE | WS_BORDER, 30, 50, 550, 20, hWnd, NULL, NULL, NULL);
+    inputPath = CreateWindowA("Edit", startPath, WS_CHILD | WS_VISIBLE | WS_BORDER, 30, 80, 550, 20, hWnd, NULL, NULL, NULL);
+    outputPath = CreateWindowA("Edit", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_MULTILINE | WS_VSCROLL, 30, 110, 550, 120, hWnd, NULL, NULL, NULL);
+
 
 
 
@@ -69,7 +76,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
         DispatchMessage(&msg);
     }
 
-    return msg.wParam; 
+    return msg.wParam;
 }
 
 
@@ -86,6 +93,7 @@ ATOM RegMyWindowClass(HINSTANCE hInst, LPCTSTR lpzClassName)
 }
 
 
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
@@ -93,13 +101,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
         switch (wParam)
         {
-            case onButtonClicked:
+        case buttonSearchClick:
             searchFun();
+            break;
+        case buttonSelectClick:
+
+            char pchSelectedF[MAX_PATH] = "";
+
+            BROWSEINFO bi =
+            {
+                hWnd,
+                0,
+                (LPWSTR)pchSelectedF,
+                L"Выбираем папку",
+                0, 0, 0, 0
+            };
+
+            TCHAR szDir[MAX_PATH];
+            LPITEMIDLIST lpItem = SHBrowseForFolder(&bi);
+            SHGetPathFromIDList(lpItem, szDir);
+
+            LPWSTR temp1 = szDir;
+            size_t nLength;
+            wcstombs_s(&nLength, NULL, 0, temp1, 0);
+            LPSTR temp2 = new CHAR[nLength];
+            wcstombs_s(&nLength, temp2, nLength, temp1, nLength);
+
+            SetWindowTextA(inputPath, temp2);
+
             break;
         }
         break;
     case WM_DESTROY:
-        PostQuitMessage(0); 
+        PostQuitMessage(0);
         break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
@@ -107,107 +141,132 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-// С„РѕРЅРѕРІС‹Р№ РїРѕС‚РѕРє РґР»СЏ СЃРєР°РЅР° РїР°РїРѕРє
+
+// фоновый поток для скана папок
 DWORD WINAPI thread2(LPVOID t)
 {
-    // РїРѕР»СѓС‡Р°РµРј РґРёСЂРµРєС‚РѕСЂРёСЋ РґР»СЏ РїРѕРёСЃРєР°
+    // получаем директорию для поиска
     LPCSTR mainPath = "";
-    TCHAR buff[1024] = {0};
+    TCHAR buff[1024] = { 0 };
     GetWindowText(inputPath, buff, 1024);
-    mainPath = buff;
 
-    // РЅР°С‡Р°Р»СЊРЅС‹Р№ РїРѕРёСЃРє РІРЅСѓС‚СЂРё Р±Р°Р·РѕРІРѕР№ РїР°РїРєРё
+    // конверт директории в нормальный вид
+    LPWSTR temp1 = buff;
+    size_t nLength;
+    wcstombs_s(&nLength, NULL, 0, temp1, 0);
+    LPSTR temp2 = new CHAR[nLength];
+    wcstombs_s(&nLength, temp2, nLength, temp1, nLength);
+    mainPath = temp2;
+
+    // начальный поиск внутри базовой папки
     nextFolderScan(mainPath);
 
-    // РІС‹РІРѕРґ СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ
-    if(result == "")
-        SetWindowText(outputPath, "nothing in file");   
+    // вывод результатов
+    if (result == "")
+        SetWindowTextA(outputPath, "nothing in file");
     else
-        SetWindowText(outputPath, result.c_str());
+        SetWindowTextA(outputPath, result.c_str());
 
-    // Р·Р°РІРµСЂС€РµРЅРёРµ РїРѕС‚РѕРєР°, Рё РІРѕР·РІСЂР°С‚ СЃРѕСЃС‚РѕСЏРЅРёСЏ РєРЅРѕРїРєРё
+    // завершение потока, и возврат состояния кнопки
     buttonActivate(true);
     return 0;
 }
 
 void searchFun()
 {
-    TCHAR buff[1024] = {0};
+    TCHAR buff[1024] = { 0 };
 
-    // РїРѕР»СѓС‡Р°РµРј С„РѕСЂРјР°С‚С‹ С„Р°Р№Р»РѕРІ
+    // получаем форматы файлов
     GetWindowText(inputFormat, buff, 1024);
-    std::istringstream iss(buff);   // СЃС‚СЂРѕРєР° СЃ РїСѓС‚СЏРјРё, РїРѕС‚РѕРј РІ РІРµРєС‚РѕСЂ
+
+    // конверь форматов в норм вид
+    LPWSTR temp1 = buff;
+    size_t nLength;
+    wcstombs_s(&nLength, NULL, 0, temp1, 0);
+    LPSTR temp2 = new CHAR[nLength];
+    wcstombs_s(&nLength, temp2, nLength, temp1, nLength);
+
+
+    std::istringstream iss(temp2);   // строка с путями, потом в вектор
     std::copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), std::back_inserter(searchFormat));
 
-    // РїРѕР»СѓС‡Р°РµРј СЃС‚СЂРѕРєСѓ РґР»СЏ РїРѕРёСЃРєР°
-    buff[1024] = {0};
+    // получаем строку для поиска
+    buff[1023] = { 0 };
     GetWindowText(inputWord, buff, 1024);
-    searchWord = buff;
 
-    // СЃРѕР·РґР°РЅРёРµ РїРѕС‚РѕРєР° Рё РёР·РјРµРЅРµРЅРёРµ СЃРѕСЃС‚РѕСЏРЅРёСЏ РєРЅРѕРїРєРё
-    HANDLE thread = CreateThread(NULL,0,thread2,NULL, 0, NULL);
+    // конверь форматов в норм вид
+    temp1 = buff;
+    wcstombs_s(&nLength, NULL, 0, temp1, 0);
+    temp2 = new CHAR[nLength];
+    wcstombs_s(&nLength, temp2, nLength, temp1, nLength);
+
+    searchWord = temp2;
+
+    // создание потока и изменение состояния кнопки
+    HANDLE thread = CreateThread(NULL, 0, thread2, NULL, 0, NULL);
     buttonActivate(false);
 }
 
-// СЃРјРµРЅР° СЃРѕСЃС‚РѕСЏРЅРёР№ Рё РЅР°Р·РІР°РЅРёР№ РєРЅРѕРїРєРё
+// смена состояний и названий кнопки
 void buttonActivate(bool state)
 {
-    if(state == false)
-        SetWindowText(hwndButton, "Waiting...");
+    if (state == false)
+        SetWindowText(hwndButton, L"Waiting...");
     else
-        SetWindowText(hwndButton, "search");
-    
-    EnableWindow(hwndButton,state);
+        SetWindowText(hwndButton, L"search");
+
+    EnableWindow(hwndButton, state);
 }
 
-// РЅР°С…РѕР¶РґРµРЅРёРµ С„Р°Р№Р»РѕРІ Рё РїР°РїРѕРє РІРЅСѓС‚СЂРё РїР°РїРєРё
+// нахождение файлов и папок внутри папки
 void nextFolderScan(LPCSTR pathLpc)
 {
     std::string path = pathLpc;
-   
-    for (const auto & entry : std::filesystem::directory_iterator(path))
+
+
+    for (const auto& entry : std::filesystem::directory_iterator(path))
     {
-        // Р±РµСЂРµРј РєР°Р¶РґС‹Р№ СЌР»РµРјРµРЅС‚ РІ РїР°РїРєРµ, Рё РјРµРЅСЏРµРј Сѓ РЅРµРіРѕ РІ РїСѓС‚Рё РґРІРµ С‡РµСЂС‚С‹ РЅР° РѕРґРЅСѓ
+        // берем каждый элемент в папке, и меняем у него в пути две черты на одну
         std::string tmp = entry.path().string();
         std::string replaceStr = "\\";
         int pos = tmp.find(replaceStr);
-        if(pos > 0)
-            tmp.replace(pos,1,"/");
+        if (pos > 0)
+            tmp.replace(pos, 1, "/");
 
-        // РµСЃР»Рё СЃРѕРІРїР°Р»Рѕ СЂР°СЃС€РёСЂРµРЅРёРµ С„Р°Р№Р»Р°, С‚Рѕ РѕС‚РєСЂС‹РІР°РµРј Рё РїСЂРѕРІРµСЂСЏРµРј
+        // если совпало расширение файла, то открываем и проверяем
         for (size_t i = 0; i < searchFormat.size(); i++)
         {
             int pos2 = tmp.find(searchFormat[i]);
-            if(pos2 > 0)
+            if (pos2 > 0)
                 loadFile(tmp.c_str());
         }
-        
-        // РµСЃР»Рё С‚РѕС‡РєРё РІ РЅР°Р·РІР°РЅРёРё РЅРµ РЅР°Р№РґРµРЅРѕ, С‚Рѕ Р·РЅР°С‡РёС‚ СЌС‚Рѕ РїР°РїРєР°, Рё С‚РµРїРµСЂСЊ РїСЂРѕРІРµСЂСЏРµРј РІРЅСѓС‚СЂРё РЅРµС‘
+
+        // если точки в названии не найдено, то значит это папка, и теперь проверяем внутри неё
         int pos1 = tmp.find('.');
-        if(pos1 < 0)
+        if (pos1 < 0)
             nextFolderScan(tmp.c_str());
 
     }
 }
 
-// РїРѕРёСЃРє СЃР»РѕРІ РІ С‚РµРєСЃС‚Рµ
+// поиск слов в тексте
 int textEqual(std::string& text)
 {
 
     int pos = text.find(searchWord);
 
-    if(pos > 0)
+    if (pos > 0)
         return 1;
     else
         return 0;
-    
+
 }
 
-// Р·Р°РіСЂСѓРєР° С„Р°Р№Р»Р° РїРѕ СѓРєР°Р·Р°РЅРЅРѕРјСѓ РїСѓС‚Рё
+// загрука файла по указанному пути
 void loadFile(LPCSTR path)
 {
     int bufferSize = 160000;
-    char textBuffer[bufferSize] {};  // Р±С‹Р»Р° РѕС€РёР±РєР°. Р±РµР· {} РѕСЃС‚Р°РІР°Р»РёСЃСЊ РґР°РЅРЅС‹Рµ РЅР° СЃР»РµРґСѓСЋС‰РёР№ РєСЂСѓРі Рё Р»РѕР¶РЅС‹Рµ СЃСЂР°Р±Р°С‚С‹РІР°РЅРёСЏ.
+    char textBuffer[160000]{};  // была ошибка. без {} оставались данные на следующий круг и ложные срабатывания.
 
     HANDLE FileToLoad = CreateFileA(path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     DWORD bytesIterated;
@@ -217,8 +276,8 @@ void loadFile(LPCSTR path)
 
     int res = textEqual(tempOut);
 
-    if(res == 1)
-        result = result + path + "\n"; 
+    if (res == 1)
+        result = result + path + "\n";
 
 }
 
